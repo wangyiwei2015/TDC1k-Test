@@ -35,11 +35,12 @@ void setup() {
     ok &= usafe.setTriggerEdge(true);
     ok &= usafe.setTx(TDC1000_CLKIN_FREQ_DIV, 6 /*pulses*/, 31 /*shift*/, true /*damping*/);
     ok &= usafe.setRx(false /*multiEcho*/);
-    ok &= usafe.setRxSensitivity(TDC1000::RxDacEchoThreshold::m220mV, TDC1000::RxPgaGain::g21dB, TDC1000:: RxLnaFbMode::resistive);
+    ok &= usafe.setRxSensitivity(TDC1000::RxDacEchoThreshold::m220mV, TDC1000::RxPgaGain::g21dB, TDC1000:: RxLnaFbMode::capacitive);
     ok &= usafe.setRepeat(TDC1000::TxRxCycles::x1, 0 /*expected pulses*/);
-    ok &= usafe.setTofMeasuementShort(TDC1000::T0::ClkInDiv1, TDC1000::TxAutoZeroPeriod::T0x64,
-                                    TDC1000::TxBlankPeriod::T0x16, TDC1000::TxEchoTimeoutPeriod::disabled);
-    ok &= usafe.setMeasureTOF(TDC1000::TxRxChannel::Channel1, TDC1000::TofMode::Mode2);
+    ok &= usafe.setTofMeasuementShort(
+        TDC1000::T0::ClkInDiv1, TDC1000::TxAutoZeroPeriod::T0x64,
+        TDC1000::TxBlankPeriod::T0x16, TDC1000::TxEchoTimeoutPeriod::disabled);
+    ok &= usafe.setMeasureTOF(TDC1000::TxRxChannel::Channel1, TDC1000::TofMode::Mode0); // Mode2
     //ok &= usafe.setMeasureTOF(TDC1000::TxRxChannel::Swap, TDC1000::TofMode::Mode2);
     usafe.dumpSettings(TDC1000_CLKIN_FREQ_HZ);
 
@@ -84,7 +85,7 @@ void loop() {
     while(!Serial.available());
     String input = Serial.readString();
     
-    if(input == "") {
+    if(input == "t") {
         Serial.println("output signal");
         // Trigger new measurement
         digitalWrite(PIN_TDC1000_TRIGGER, HIGH);
