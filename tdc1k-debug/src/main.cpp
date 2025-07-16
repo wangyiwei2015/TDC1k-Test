@@ -1,26 +1,31 @@
 #include "TDC1000.h"
-#include <driver/ledc.h>
 
-//#define PIN_TDC1000_START     (2)
-//#define PIN_TDC1000_STOP      (3)
-#define PIN_TDC1000_TRIGGER   (4)
-#define PIN_TDC1000_RESET     (5)
-//#define PIN_TDC1000_CHSEL     (7)
-//#define PIN_TDC1000_ERRB      (8)
-#define PIN_TDC1000_SPI_CS    (9)
-#define PIN_TDC1000_CLKIN    (17)
+#define PIN_TDC1000_ERRB      (2)
+#define PIN_TDC1000_START     (3)
+#define PIN_TDC1000_STOP      (A5)
+#define PIN_TDC1000_RESET     (4)
+#define PIN_TDC1000_TRIGGER   (5)
+#define PIN_TDC1000_EN        (6)
+#define PIN_TDC1000_CHSEL     (7)
+#define PIN_TDC1000_SPI_CS    (A4)
+#define PIN_TDC1000_CLKIN     (11)
 #define TDC1000_CLKIN_FREQ_HZ  8000000
 #define TDC1000_CLKIN_FREQ_DIV (TDC1000::TxFreqDivider::Div2)
 
-//#include <TimerOne.h>
-//#define PWM_CYCLE_US (1000000/TDC1000_CLKIN_FREQ_HZ)
-
 static TDC1000 usafe(PIN_TDC1000_SPI_CS, PIN_TDC1000_RESET);
+
+void onStart() {
+    Serial.println("start sigbnal");
+}
+
+void onError() {
+    Serial.println("error signal");
+}
 
 void setup() {
     Serial.begin(115200);
-    while(!Serial.available());
-    delay(1000); Serial.flush();
+    while(!Serial) delay(200);
+    delay(500); Serial.flush();
     Serial.println(F("-- Starting TDC1000 test --"));
     while (not usafe.begin()) {
         Serial.println(F("Failed to init TDC1000"));
@@ -28,7 +33,6 @@ void setup() {
     }
     Serial.println(F("TDC1000 init OK"));
 
-    //usafe.dumpSettings();
     delay(1000);
 
     bool ok = true;
@@ -49,46 +53,44 @@ void setup() {
         while(1);
     }
 
-    // 配置PWM
-    ledc_timer_config_t timer_cfg = {
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .duty_resolution = LEDC_TIMER_1_BIT, // 1位分辨率
-        .timer_num = LEDC_TIMER_0,
-        .freq_hz = TDC1000_CLKIN_FREQ_HZ,
-        .clk_cfg = LEDC_AUTO_CLK
-    };
-    ledc_timer_config(&timer_cfg);
-
-    ledc_channel_config_t ch_cfg = {
-        .gpio_num = PIN_TDC1000_CLKIN,
-        .speed_mode = LEDC_HIGH_SPEED_MODE,
-        .channel = LEDC_CHANNEL_0,
-        .timer_sel = LEDC_TIMER_0,
-        .duty = 1,  // 占空比50%
-        .hpoint = 0
-    };
-    ledc_channel_config(&ch_cfg);
-
-    //pinMode(PIN_TDC1000_START, INPUT);
-    //pinMode(PIN_TDC1000_STOP, INPUT);
-
-    digitalWrite(PIN_TDC1000_TRIGGER, LOW);
+    pinMode(PIN_TDC1000_START, INPUT_PULLUP);
+    pinMode(PIN_TDC1000_STOP, INPUT_PULLUP);
+    pinMode(PIN_TDC1000_CHSEL, OUTPUT);
+    pinMode(PIN_TDC1000_ERRB, INPUT_PULLUP);
     pinMode(PIN_TDC1000_TRIGGER, OUTPUT);
+    pinMode(PIN_TDC1000_CLKIN, OUTPUT);
+    pinMode(13, OUTPUT);
+
+    attachInterrupt(digitalPinToInterrupt(PIN_TDC1000_START), onStart, RISING);
+    attachInterrupt(digitalPinToInterrupt(PIN_TDC1000_ERRB), onError, RISING);
+    analogWrite(PIN_TDC1000_CLKIN, 128);
 
     Serial.flush();
+}
+
+inline void burst(int time = 1) {
+    Serial.println("== BURST ==");
+    digitalWrite(13, 1);
+    digitalWrite(PIN_TDC1000_TRIGGER, HIGH);
+    delay(time);
+    digitalWrite(PIN_TDC1000_TRIGGER, LOW);
+    digitalWrite(13, 0);
 }
 
 void loop() {
     usafe.clearErrorFlags();
     usafe.resetStatemachine();
 
+    delay(1000);
+    burst();
+    return;
+
     while(!Serial.available());
     String input = Serial.readString();
     
     if(input == "t") {
         Serial.println("output signal");
-        // Trigger new measurement
-        digitalWrite(PIN_TDC1000_TRIGGER, HIGH);
-        digitalWrite(PIN_TDC1000_TRIGGER, LOW);
+        burst();
     }
+    //usafe.getErrorFlags
 }
